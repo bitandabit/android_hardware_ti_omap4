@@ -38,28 +38,36 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ### ###########################################################################
 
-# If there's no build.prop file in the expected location, bail out. Tell the
-# user which file we were trying to read in case TARGET_DEVICE was not set.
-#
-BUILD_PROP := $(TARGET_ROOT)/product/$(TARGET_DEVICE)/system/build.prop
-ifeq ($(wildcard $(BUILD_PROP)),)
-$(warning *** Could not determine Android version.  Did you set ANDROID_ROOT,\
-OUT_DIR and TARGET_DEVICE in your environment correctly?)
-$(error Error reading $(BUILD_PROP))
-endif
-
-# Extract version.release and version.codename from the build.prop file.
-# If either of the values aren't in the build.prop, the Make variables won't
-# be defined, and fallback handling will take place.
-#
 define newline
 
 
 endef
+
+# If there's no build.prop file in the expected location, bail out. Tell the
+# user which file we were trying to read in case TARGET_DEVICE was not set.
+#
+BUILD_PROP := $(ANDROID_PRODUCT_OUT)/system/build.prop
+ifeq ($(wildcard $(BUILD_PROP)),)
+$(warning *** No device prop file ($(BUILD_PROP)). Extracting from \
+	build/core/version_defaults.mk)
+# Android version information doesn't permeate here. Set it up manually,
+# but avoid including the whole of core/version_defaults.mk
+$(eval $(subst #,$(newline),$(shell cat $(ANDROID_BUILD_TOP)/build/core/version_defaults.mk |\
+	grep 'PLATFORM_VERSION\s.*=\|PLATFORM_VERSION_CODENAME\s.*=' | tr '\n' '#')))
+PLATFORM_RELEASE := $(PLATFORM_VERSION)
+PLATFORM_CODENAME := $(PLATFORM_VERSION_CODENAME)
+else
+# Extract version.release and version.codename from the build.prop file.
+# If either of the values aren't in the build.prop, the Make variables won't
+# be defined, and fallback handling will take place.
+#
 $(eval $(subst #,$(newline),$(shell cat $(BUILD_PROP) | \
 	grep '^ro.build.version.release=\|^ro.build.version.codename=' | \
 	sed -e 's,ro.build.version.release=,PLATFORM_RELEASE=,' \
 	    -e 's,ro.build.version.codename=,PLATFORM_CODENAME=,' | tr '\n' '#')))
+endif
+
+$(info PLATFORM_RELEASE=$(PLATFORM_RELEASE) & PLATFORM_CODENAME=$(PLATFORM_CODENAME))
 
 define release-starts-with
 $(shell echo $(PLATFORM_RELEASE) | grep -q ^$(1); \
